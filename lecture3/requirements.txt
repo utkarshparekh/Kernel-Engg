@@ -1,1 +1,4 @@
-modal==1.5.5
+# Remote GPU Python dependencies (install inside the remote venv).
+cupy-cuda13x==14.2.0
+numpy==2.3.5
+pillow==10.4.0

@@ -127,5 +127,5 @@ this accommodates rotating keys but cannot detect server impersonation.
 | [lecture1](lecture1) | H100 bandwidth measurements and Qwen3-8B serving |
 | [lecture3](lecture3) | CUDA image kernels and warp divergence |
 
-Programs that already manage Modal themselves, such as `lecture3/dog.py`, use
-their lecture's documented `modal run` command instead of `just run`.
+Run the Lecture 3 image benchmarks with `just run lecture3/dog.py`. See
+[lecture3/README.md](lecture3/README.md) for its inputs and outputs.

@@ -1,61 +1,45 @@
-# Lecture 3: The dog on a real H100
+# Lecture 3: CUDA kernels on the dog image
 
 In the lecture we followed one photo of a dog, 1024 x 768 pixels, through an H100: one thread for each pixel, blocks
 of 16 x 16 threads, and warps of 32 threads that run each instruction together. The second hour showed what the blog's
 kernels cost on a real H100, and how many warps disagree at an if. This folder runs the same kernels on a GPU you rent
-from Modal, so you can see those numbers on your own screen.
+from Modal or JarvisLabs through the shared `just` workflow.
 
 | File | What it does |
 |---|---|
-| `dog.py` | Compiles the kernels on an H100, runs them on the dog and times them. It checks the gray, checkerboard and portrait images against the blog's, pixel by pixel. |
+| `dog.py` | Compiles the kernels on the selected GPU, runs them on the dog and times them. It checks the gray, checkerboard and portrait images against the blog's, pixel by pixel. |
 | `dog/` | The inputs: the dog, the mask that marks which pixels are dog, and in `dog/blog/` the blog's own images. |
-| `requirements.txt` | The Modal client version we tested with. |
+| `requirements.txt` | Python dependencies required on the GPU machine. |
 
 The kernels come from Vizuara's blog post
 [The CUDA Programming Model](https://vizuaraai.github.io/cuda-programming-model/), written in CUDA C as close to the
 blog's code as we could. The grayscale kernel is the one from section 4; the checkerboard and portrait mode come from
 section 10, "Warp divergence, measured on the dog". The lecture's slides are in the workshop's course on Vizuara.
 
-## What it costs
+## Setup and run
 
-An H100 costs about $3.95 an hour on Modal, billed by the second. `modal run` keeps the GPU only while the program
-runs: it starts a container on an H100, runs the kernels, sends the results back to your laptop and stops the
-container, so one run costs a few cents. If something hangs on the GPU machine, the program stops its own container
-after five minutes. New Modal accounts get free monthly credits; check [modal.com/pricing](https://modal.com/pricing)
-for the current amounts.
-
-## 1. Install Modal and log in
+Follow the [provider setup instructions](../README.md). From the repository root:
 
 ```bash
-pip install modal
-modal setup
+just run lecture3/dog.py                         # default provider; Modal uses L4
+just provider=modal gpu=H100 run lecture3/dog.py  # compare with the lecture's H100
+just provider=jarvis run lecture3/dog.py         # use your Jarvis VM GPU
 ```
 
-`modal setup` opens your browser once. Modal then keeps your key on your computer, so you never paste a key into code,
-a chat or a notebook. If you set up Modal for Lecture 1, you can skip this step.
-
-## 2. Get the code
+For Jarvis, also install these dependencies **on the VM**, inside its virtual
+environment:
 
 ```bash
-git clone https://github.com/VizuaraAI/Kernel-Engg
-cd Kernel-Engg/lecture3
+/home/ubuntu/cuda-workspace/.venv/bin/python -m pip install \
+  cupy-cuda13x==14.2.0 numpy==2.3.5 pillow==10.4.0
 ```
 
-If you cloned the repository for Lecture 1, run `git pull` inside `Kernel-Engg` instead, then `cd lecture3`. The
-folder's `requirements.txt` names the Modal client version we tested with, and `pip install -r requirements.txt`
-installs exactly that version.
+The shared runner uploads the input images, runs the benchmarks, downloads
+artifacts and releases compute. The Modal image includes all dependencies.
+GPU type affects timing; use the recorded device name when comparing results.
+Current pricing is available from your provider; no fixed run cost is assumed.
 
-## 3. Run the dog
-
-```bash
-modal run dog.py
-```
-
-This rents one H100, compiles the kernels on it with NVRTC, launches them from Python with CuPy and times each one
-with CUDA events: the median of many launches after a warm-up. The first run also builds the software image, which
-takes a few minutes; later runs reuse it and finish in well under a minute.
-
-While it runs, the GPU machine prints a line for each kernel it measures. Then your laptop prints a summary. Our test
+While it runs, the GPU machine prints a line for each kernel it measures. The program then prints a summary. Our test
 run on 13 October 2026 printed:
 
 ```
@@ -87,7 +71,7 @@ divergence: heavy branches, 512 steps of arithmetic a side:
   portrait condition, all-dog mask      57.1 µs
 ```
 
-## 4. Match the numbers to the slides
+## Match the numbers to the slides
 
 The two "Measured" slides in the lecture's second hour show our run of 1 October 2026. This is where each of their
 numbers appears in the printout, next to what our test run printed:
@@ -124,17 +108,18 @@ and the image checks do not move, because they depend only on the dog, the mask 
 
 ## Where the results land
 
-The run writes two folders next to `dog.py`, and the last line of its printout names them:
+With `just run`, outputs are downloaded to `results/<run-id>/artifacts/`:
 
-- `out/` holds the three images the GPU made: `gray.png`, `checker.png` and `portrait.png`. Open them next to the
-  blog's images in `dog/blog/`.
-- `data/dog_kernels.json` holds every number from the run, with the GPU and the time of the measurement.
+- `out/`: generated images such as `gray.png`, `checker.png` and `portrait.png`.
+- `data/dog_kernels.json`: GPU details, timings and correctness comparisons.
 
-Both folders are listed in the repository's `.gitignore`, so git leaves them out.
+The runner prints the local results directory. Results are ignored by Git.
+Direct execution with `python dog.py` on a configured GPU writes `out/` and
+`data/` beside the script when `GPU_RESULTS_DIR` is not set.
 
-## If something goes wrong
+## Troubleshooting
 
-- **`modal: command not found`**: the install from step 1 went to a different Python than your shell uses. Try
-  `python3 -m pip install modal`, then `python3 -m modal setup` and `python3 -m modal run dog.py`.
-- **`git clone` says `Kernel-Engg` already exists**: you cloned the repository for Lecture 1. Run
-  `git -C Kernel-Engg pull`, then `cd Kernel-Engg/lecture3`.
+- Missing `PIL` on Jarvis: install Pillow in the remote venv using the command above.
+- Missing `just` or provider credentials: follow the root README setup steps.
+- Do not use `modal run dog.py`: this file now runs directly on the GPU allocated
+  by the shared runner.

@@ -2,8 +2,7 @@
 
 Modal is the default provider, with one L4 GPU. Kernel files do not need Modal
 annotations: the provider adapter runs standalone CUDA/C++ (`.cu`) and Python
-(`.py`) programs. Python programs that already orchestrate Modal apps themselves
-(such as `lecture3/dog.py`) should still use their original `modal run` workflow.
+(`.py`) programs. `lecture3/dog.py` also runs directly through this workflow.
 
 ## One-time setup on your Mac
 
@@ -73,7 +72,7 @@ Modal runs in a new temporary container and only collected results survive.
 ## Modal
 
 Uses a CUDA 13.0 development image, Python 3.12, CuPy 14.2.0, NumPy 2.3.5 and
-Numba CUDA 0.30.4. Images are cached; the first run builds the environment.
+Numba CUDA 0.30.4 and Pillow 10.4.0. Images are cached; the first run builds the environment.
 The client SDK is pinned separately in `requirements-modal.txt` and installed
 only in `.venv`. A temporary GPU sandbox is created per execution and explicitly
 terminated after artifacts are collected. It has a 300-second maximum lifetime,

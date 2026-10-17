@@ -1,35 +1,23 @@
-"""Lecture 3 practical: the dog from "The CUDA Programming Model" (vizuaraai.github.io/cuda-programming-model), on a
-real NVIDIA H100.
+"""Lecture 3 CUDA image kernels and benchmarks on the GPU supplied by `just run`.
 
-    pip install modal
-    modal setup                  # log in once in the browser; Modal keeps your key on this machine
-    modal run dog.py             # a few minutes the first time (the image is built once), then under a minute
+From the repository root:
+    just run lecture3/dog.py
+    just provider=modal gpu=H100 run lecture3/dog.py
+    just provider=jarvis run lecture3/dog.py
 
-Every kernel below is CUDA C, written as close to the blog's code as we could, compiled on the GPU machine with NVRTC
-and launched from Python with CuPy. One H100 runs them on the blog's own 1024 x 768 dog and measures the numbers on the
-lecture's two "Measured" slides, "What the dog costs" and "Divergence":
-
-    section 4    kernel A, rgb_to_gray: one thread per pixel, 16 x 16 blocks (pixel (579, 329) must come out as 36)
-    section 10   the checkerboard branch and portrait mode, a count of the warps whose 32 threads disagree, and the same
-                 branches made heavy (512 steps of arithmetic a side), so that running both sides shows in the time
-
-An empty kernel shows the floor: no launch can take less. Each time comes from CUDA events, the median of many launches
-after a warm-up. The images land in out/, checked pixel by pixel against the blog's own images in dog/blog/; the numbers
-land in data/dog_kernels.json. The GPU costs about $3.95 an hour on Modal, so one run costs a few cents. The container
-stops itself after five minutes whatever happens.
+Requires CuPy, NumPy and Pillow. Inputs are in dog/ beside this file.
+Images and measurements are written under GPU_RESULTS_DIR (or beside this file
+when executed directly). Timing uses CUDA events and the original warm-up and
+batching methodology. Measurements record the actual GPU.
 """
 import io
+import os
 import json
 import time
 from pathlib import Path
 
-import modal
 
 HERE = Path(__file__).resolve().parent
-app = modal.App("l3-dog")
-image = (modal.Image.from_registry("nvidia/cuda:13.0.0-devel-ubuntu24.04", add_python="3.12")
-         .entrypoint([])
-         .pip_install("cupy-cuda13x==14.2.0", "numpy==2.3.5", "pillow==10.4.0"))
 
 W, H = 1024, 768                    # the dog
 
@@ -138,17 +126,7 @@ extern "C" __global__ void empty() {}
 
 
 # ===================================================================================================== on the GPU
-@app.function(image=image, gpu="H100", max_containers=1, timeout=420)
 def run(dog_png: bytes, mask_png: bytes, blog: dict) -> dict:
-    import os
-    import threading
-
-    def watchdog(seconds=300):               # whatever happens, this container stops after five minutes
-        time.sleep(seconds)
-        print(f"watchdog: {seconds} s passed, stopping", flush=True)
-        os._exit(3)
-    threading.Thread(target=watchdog, daemon=True).start()
-
     import cupy as cp
     import numpy as np
     from PIL import Image, ImageFilter
@@ -281,19 +259,19 @@ def run(dog_png: bytes, mask_png: bytes, blog: dict) -> dict:
                 measured_at=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()))
 
 
-# ===================================================================================================== on your laptop
+# ===================================================================================================== input/output
 def fmt_time(us):
     return f"{us:,.1f} µs" if us < 1000 else f"{us / 1000:,.2f} ms"
 
 
-@app.local_entrypoint()
 def main():
     dog = HERE / "dog"
     blog = {name: (dog / "blog" / name).read_bytes() for name in ("gray.png", "checker.png", "portrait.png")}
-    r = run.remote((dog / "dog.png").read_bytes(), (dog / "mask.png").read_bytes(), blog)
-    out, data = HERE / "out", HERE / "data"
-    out.mkdir(exist_ok=True)
-    data.mkdir(exist_ok=True)
+    r = run((dog / "dog.png").read_bytes(), (dog / "mask.png").read_bytes(), blog)
+    output_root = Path(os.environ.get("GPU_RESULTS_DIR") or HERE)
+    out, data = output_root / "out", output_root / "data"
+    out.mkdir(parents=True, exist_ok=True)
+    data.mkdir(parents=True, exist_ok=True)
     for name, b in r.pop("pngs").items():
         (out / f"{name}.png").write_bytes(b)
 
@@ -324,8 +302,12 @@ def main():
 
     r["what"] = ("Lecture 3 of the Kernel Engineering Workshop: the kernels of the blog 'The CUDA Programming Model' "
                  "(vizuaraai.github.io/cuda-programming-model), compiled with NVRTC and launched with CuPy on one "
-                 "NVIDIA H100 rented on Modal (app l3-dog), on the blog's own 1024 x 768 dog.")
+                 f"{d['name']} GPU, on the blog's own 1024 x 768 dog.")
     r["method"] = {"time": "CUDA events around a batch of back-to-back launches queued behind a 1 ms spin kernel; the "
                            "median of 9 to 15 batches after one warm-up launch; microseconds per launch",
                    "launch_floor_us": r["launch_floor_us"]}
     (data / "dog_kernels.json").write_text(json.dumps(r, indent=1))
+
+
+if __name__ == "__main__":
+    main()

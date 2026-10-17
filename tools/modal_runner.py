@@ -47,7 +47,7 @@ def main():
     try:
         image = (modal.Image.from_registry('nvidia/cuda:13.0.0-devel-ubuntu24.04', add_python='3.12')
                  .entrypoint([])
-                 .pip_install('cupy-cuda13x==14.2.0', 'numpy==2.3.5', 'numba-cuda==0.30.4')
+                 .pip_install('cupy-cuda13x==14.2.0', 'numpy==2.3.5', 'numba-cuda==0.30.4', 'pillow==10.4.0')
                  .add_local_dir(source.parent, '/workspace/src', ignore=[
                      '**/.git/**', '**/.venv/**', '**/__pycache__/**', '**/results/**',
                      '/bin/**', '/lib/**', 'pyvenv.cfg', '.gpu.json', '.env', '.env.*']))
