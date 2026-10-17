@@ -29,10 +29,10 @@ __global__ void vecadd(
 }
 
 void populateVector(
-    float* vec, int n, float k
+    float* vec, int n, float k, bool useIndex
 ) {
     for (int i = 0; i < n; i++) {
-        vec[i] = k;
+        vec[i] = useIndex ? static_cast<float>(i) : k;
     }
 }
 
@@ -43,8 +43,8 @@ int main(void) {
     float* hostVecA = new float[N];
     float* hostVecB = new float[N];
     float* hostVecC = new float[N];
-    populateVector(hostVecA, N, 3.14f);
-    populateVector(hostVecB, N, 2.0f);
+    populateVector(hostVecA, N, 3.14f, true);
+    populateVector(hostVecB, N, 2.0f, false);
 
     // device vectors (containers)
     // memory of these containers is in GPU DRAM (VRAM)
