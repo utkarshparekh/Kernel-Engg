@@ -129,3 +129,13 @@ this accommodates rotating keys but cannot detect server impersonation.
 
 Run the Lecture 3 image benchmarks with `just run lecture3/dog.py`. See
 [lecture3/README.md](lecture3/README.md) for its inputs and outputs.
+
+## Profile GPU execution
+
+```bash
+just profile lecture4/vecadd.cu
+```
+
+Prints kernel and memory-transfer timing summaries in the terminal and saves
+Nsight Systems reports in `results/<run-id>/artifacts/profile/`. Compute is
+released afterward. See [profiling setup and limitations](tools/GPU.md#profile-from-the-terminal).
