@@ -13,7 +13,7 @@ SPEC.loader.exec_module(runner)
 
 
 class LifecycleTests(unittest.TestCase):
-    def invoke(self, program_status=0, artifact_error=None, cleanup_error=None, profile_mode=''):
+    def invoke(self, program_status=0, artifact_error=None, cleanup_error=None, profile_mode='', base_image=''):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / 'kernel.cu'
@@ -31,10 +31,10 @@ class LifecycleTests(unittest.TestCase):
                     pass
             sandbox.filesystem.copy_to_local.side_effect = download
             with patch.object(runner, 'ROOT', root), patch.object(runner.sys, 'argv', ['runner', str(source)]), \
-                 patch.object(runner.modal, 'Image'), patch.object(runner.modal, 'App'), \
+                 patch.object(runner.modal, 'Image') as image, patch.object(runner.modal, 'App'), \
                  patch.object(runner.modal, 'enable_output'), \
                  patch.object(runner.modal.Sandbox, 'create', return_value=sandbox) as create, \
-                 patch.dict(os.environ, {'GPU_PROFILE': profile_mode}), \
+                 patch.dict(os.environ, {'GPU_PROFILE': profile_mode, 'MODAL_BASE_IMAGE': base_image}), \
                  patch.object(runner, 'execute', side_effect=[0, program_status]):
                 if artifact_error:
                     with self.assertRaises(RuntimeError):
@@ -50,6 +50,12 @@ class LifecycleTests(unittest.TestCase):
             self.assertEqual(metadata['tags']['program'], 'kernel')
             self.assertEqual(metadata['tags']['mode'], mode)
             self.assertEqual(metadata['sandbox_id'], 'sb-test')
+            expected_image = base_image or runner.DEFAULT_MODAL_IMAGE
+            self.assertEqual(metadata['base_image'], expected_image)
+            if base_image:
+                image.from_registry.assert_called_once_with(base_image)
+            else:
+                image.from_registry.assert_called_once_with(expected_image, add_python='3.12')
             sandbox.terminate.assert_called_once_with(wait=True)
             saved = next((root / 'results').glob('*/exit-code.txt')).read_text().strip()
             self.assertEqual(saved, str(program_status or (1 if artifact_error or cleanup_error else 0)))
@@ -68,6 +74,8 @@ class LifecycleTests(unittest.TestCase):
         self.assertTrue(name.endswith(f'-compute-{run_id}'))
 
     def test_success(self): self.invoke()
+    def test_custom_base_image(self):
+        self.invoke(base_image='lmsysorg/sglang:dev-muse-spark-open')
     def test_program_failure(self): self.invoke(program_status=7)
     def test_artifact_failure(self): self.invoke(artifact_error=RuntimeError('download failed'))
     def test_cleanup_failure(self): self.invoke(cleanup_error=RuntimeError('termination failed'))

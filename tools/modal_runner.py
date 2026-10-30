@@ -16,6 +16,7 @@ import modal
 from modal.stream_type import StreamType
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_MODAL_IMAGE = 'nvidia/cuda:13.0.0-devel-ubuntu24.04'
 
 
 def sandbox_name(source, mode, run_id):
@@ -48,19 +49,25 @@ def main():
     profile_mode = os.environ.get('GPU_PROFILE', '')
     profiling = profile_mode in ('timeline', 'compute', '1')
     gpu = os.environ.get('MODAL_GPU') or 'L4'
+    base_image = os.environ.get('MODAL_BASE_IMAGE') or DEFAULT_MODAL_IMAGE
     run_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid.uuid4().hex[:8]
     results = ROOT / 'results' / run_id
     results.mkdir(parents=True)
     mode = 'timeline' if profile_mode in ('timeline', '1') else ('compute' if profile_mode == 'compute' else 'run')
     name = sandbox_name(source, mode, run_id)
     tags = dict(program=source.stem, mode=mode, run_id=run_id)
-    metadata = dict(sandbox_name=name, mode=mode, tags=tags, provider='modal', requested_gpu=gpu, source=str(source), profiled=profiling, profile_mode=profile_mode)
+    metadata = dict(sandbox_name=name, mode=mode, tags=tags, provider='modal', requested_gpu=gpu,
+                    base_image=base_image, source=str(source), profiled=profiling, profile_mode=profile_mode)
     sb = None
     status = 1
     try:
-        image = (modal.Image.from_registry('nvidia/cuda:13.0.0-devel-ubuntu24.04', add_python='3.12')
-                 .entrypoint([])
-                 .pip_install('cupy-cuda13x==14.2.0', 'numpy==2.3.5', 'numba-cuda==0.30.4'))
+        if base_image == DEFAULT_MODAL_IMAGE:
+            image = (modal.Image.from_registry(base_image, add_python='3.12')
+                     .entrypoint([])
+                     .pip_install('cupy-cuda13x==14.2.0', 'numpy==2.3.5', 'numba-cuda==0.30.4'))
+        else:
+            # Challenge and project images already provide their own Python/CUDA stack.
+            image = modal.Image.from_registry(base_image).entrypoint([])
         if profiling:
             package = 'cuda-nsight-compute-13-0' if profile_mode == 'compute' else 'cuda-nsight-systems-13-0'
             helper = 'compute-profile.sh' if profile_mode == 'compute' else 'profile.sh'

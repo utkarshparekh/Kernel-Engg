@@ -1,8 +1,10 @@
 __pycache__/
 *.pyc
 .venv/
+.tools/
 .DS_Store
 lecture3/out/
 lecture3/data/
 .gpu.json
 results/
+profiles/

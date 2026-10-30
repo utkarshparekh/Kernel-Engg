@@ -48,3 +48,15 @@ analyze file *args:
     GPU_PROVIDER="{{provider}}" MODAL_GPU="{{gpu}}" bash tools/provider.sh timeline-profile "$@"
     @echo "[3/3] Compute profile: selected kernel hardware metrics"
     GPU_PROVIDER="{{provider}}" MODAL_GPU="{{gpu}}" NCU_KERNEL="{{kernel}}" NCU_LAUNCH_COUNT="{{launches}}" bash tools/provider.sh compute-profile "$@"
+
+# Smoke-test the challenge kernel in the official image on H200.
+okc-smoke:
+    MODAL_BASE_IMAGE="lmsysorg/sglang:dev-muse-spark-open" GPU_PROVIDER=modal MODAL_GPU=H200 bash tools/provider.sh run challenges/open-kernel/muse_bf16_proj/smoke.py
+
+# Run the official held-out check without adding a leaderboard entry.
+okc-check:
+    ./.tools/okc check challenges/open-kernel/muse_bf16_proj/submission.py
+
+# Submit only after a passing check shows a measured improvement.
+okc-submit:
+    ./.tools/okc submit challenges/open-kernel/muse_bf16_proj/submission.py
