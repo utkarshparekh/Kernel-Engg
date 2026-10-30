@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 import triton
 import triton.language as tl
+from sglang.srt.layers.quantization.unquant import _bf16_gemm_dispatch_impl
 
 
 class Weights(TypedDict):
@@ -119,6 +120,21 @@ def kernel_fn(data: Inputs, state) -> torch.Tensor:
         result = torch.mm(x, state["router_hi_t"][:, :n], out_dtype=torch.float32)
         result += torch.mm(x, state["router_lo_t"][:, :n], out_dtype=torch.float32)
         return result
+
+    # Shape-specific dispatch from paired H200 measurements:
+    #   * pre-transposed torch.mm consistently wins for pooler;
+    #   * it wins for the larger unpooler calls, but not its small sliced calls;
+    #   * qkv_gate only showed a useful win at M=16 and M=128;
+    #   * o was neutral/slower across the scored shapes.
+    # Fall back to SGLang everywhere else so a local layout win cannot turn into
+    # a regression for a different aspect ratio.
+    use_transposed_mm = (
+        layer == "pooler"
+        or (layer == "unpooler" and m > 8)
+        or (layer == "qkv_gate" and m in (16, 128))
+    )
+    if not use_transposed_mm:
+        return _bf16_gemm_dispatch_impl(x, state[layer][:n], None)
 
     weight_t = state[f"{layer}_t"]
     # Establish a strong Python baseline first.  prepare() has already converted

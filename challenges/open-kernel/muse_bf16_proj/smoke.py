@@ -19,5 +19,6 @@ def run_case(layer, m, n, k, weight_dtype, output_dtype, tolerance):
 
 
 run_case("qkv_gate", 7, 2304, 8192, torch.bfloat16, torch.bfloat16, 1e-2)
+run_case("qkv_gate", 256, 2304, 8192, torch.bfloat16, torch.bfloat16, 1e-2)
 run_case("router", 8, 256, 8192, torch.float32, torch.float32, 1e-4)
 print("Challenge smoke test passed")
