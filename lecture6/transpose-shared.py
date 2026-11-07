@@ -52,7 +52,7 @@ def main():
     assert input_mat_np.shape[0] == output_mat_np.shape[1]
     assert input_mat_np.shape[1] == output_mat_np.shape[0]
     
-    np.testing.assert_allclose(input_mat_np.T, output_mat_np, rtol=1e-5, atol=1e-5)
+    np.testing.assert_allclose(output_mat_np, input_mat_np.T, rtol=1e-5, atol=1e-5)
     print("Transpose successful and verified.")
 
 if __name__ == "__main__":
