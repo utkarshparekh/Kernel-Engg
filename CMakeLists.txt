@@ -10,8 +10,6 @@ add_executable(
         lecture04-vecadd
         common/cuda_utils.cuh
         lecture4/vecadd.cu
-        lecture18/flashattention3.cu
-        lecture18/flashattention4.cu
 )
 
 # ============ Lecture 12 - Tensor Cores ===========================
@@ -37,8 +35,20 @@ add_executable(
         common/cuda_utils.cuh
         lecture18/flashattention3.cu
 )
+
+# ============ Lecture 20 - Flash Attention 4 ========================
 add_executable(
-        lecture18-fa4
+        lecture20-fa4
         common/cuda_utils.cuh
-        lecture18/flashattention4.cu
+        lecture20/flashattention4.cu
+)
+
+# ============ misc ================================================
+add_executable(
+        misc-mbarriers-basics
+        misc/memory-barriers/basics.cu
+)
+add_executable(
+        misc-mbarriers-producer-consumer
+        misc/memory-barriers/producer-consumer.cu
 )
